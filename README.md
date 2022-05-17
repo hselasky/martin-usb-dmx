@@ -1,3 +1,4 @@
+<IMG SRC="https://raw.githubusercontent.com/hselasky/martin-usb-dmx/main/www/m-touch.png"></IMG>
 # Simple driver for Martin Lightning DMX512 via USB
 
 ## Supported products by USB ID
