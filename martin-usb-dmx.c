@@ -62,7 +62,7 @@ static uint32_t random_value;
 static float global_decay = 3.0;
 static float global_led_gain = 0;
 static float global_spot_gain = 0;
-static float global_rand_gain = 0.0625;
+static float global_pixel_speed = 0;
 
 static const uint8_t midi_map[26] = {
 	/* 1st octave */
@@ -173,6 +173,18 @@ update(uint8_t which, float i, float r, float g, float b)
 	led_map[which].value_b += (b - led_map[which].value_b) / global_decay;
 }
 
+static void
+update_pixel_speed()
+{
+#ifdef HAVE_PICTURE
+	unsigned w_rand = (arc4random() % width) * global_pixel_speed;
+	unsigned h_rand = (arc4random() % height) * global_pixel_speed;
+	unsigned value = (w_rand + h_rand * width) % (image_size / 4);
+
+	random_value = 4 * value;
+#endif
+}
+
 static void *
 usb_read_loop(void *arg)
 {
@@ -215,6 +227,9 @@ usb_write_loop(void *arg)
 	uint8_t timeout = 3;
 
 	while (1) {
+#ifdef HAVE_PICTURE
+		const char *image_ptr;
+#endif
 		convert(buffer, martin);
 
 		if (usb_bulk_write(usb_devh_tx, USB_TX_ENDPOINT, (char *)martin, sizeof(martin), 0) < 0) {
@@ -228,15 +243,19 @@ usb_write_loop(void *arg)
 
 #ifdef HAVE_PICTURE
 		image_data += random_value;
+		while ((image_data - header_data) >= image_size)
+			image_data -= image_size;
 #endif
 		for (unsigned x = SPOT_START; x != SPOT_END; x++)
 			store(global_spot_gain, buffer + x, 255);
 
 #ifdef HAVE_PICTURE
+		image_ptr = image_data;
+
 		for (unsigned x = 0; x != LEDS; x++) {
-			while ((image_data - header_data) >= image_size)
-				image_data -= image_size;
-			HEADER_PIXEL(image_data, pixels[x]);
+			while ((image_ptr - header_data) >= image_size)
+				image_ptr -= image_size;
+			HEADER_PIXEL(image_ptr, pixels[x]);
 
 			update(x, (pixels[x][0] + pixels[x][1] + pixels[x][2]) / (255.0f * 3.0f),
 			    pixels[x][0] / 255.0f, pixels[x][1] / 255.0f, pixels[x][2] / 255.0f);
@@ -245,13 +264,7 @@ usb_write_loop(void *arg)
 #endif
 		if (++counter == 30 * FPS) {
 			counter = 0;
-#ifdef HAVE_PICTURE
-			unsigned w_rand = (arc4random() % width) * global_rand_gain;
-			unsigned h_rand = (arc4random() % height) * global_rand_gain;
-			unsigned value = (w_rand + h_rand * width) % (image_size / 4);
-
-			random_value = 4 * value;
-#endif
+			update_pixel_speed();
 		}
 	}
 	printf("USB WRITE FAILED\n");
@@ -310,7 +323,8 @@ alsa_read_loop(void *arg)
 				global_spot_gain = ev->data.control.value / 127.0;
 				break;
 			case 116:
-				global_rand_gain = ev->data.control.value / 127.0;
+				global_pixel_speed = ev->data.control.value / 127.0;
+				update_pixel_speed();
 				break;
 			case 113:
 				global_decay = ev->data.control.value + 1;
