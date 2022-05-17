@@ -180,10 +180,12 @@ usb_read_loop(void *arg)
 	uint8_t timeout = 3;
 
 	while (1) {
-		if (usb_bulk_read(usb_devh_rx, USB_RX_ENDPOINT, (char *)buffer, sizeof(buffer), 0) < 0 &&
-		    timeout-- == 0)
-			break;
-		timeout = 3;
+		if (usb_bulk_read(usb_devh_rx, USB_RX_ENDPOINT, (char *)buffer, sizeof(buffer), 0) < 0) {
+			if (timeout-- == 0)
+				break;
+		} else {
+			timeout = 3;
+		}
 	}
 	printf("USB READ FAILED\n");
 	return (NULL);
@@ -215,11 +217,12 @@ usb_write_loop(void *arg)
 	while (1) {
 		convert(buffer, martin);
 
-		if (usb_bulk_write(usb_devh_tx, USB_TX_ENDPOINT, (char *)martin, sizeof(martin), 0) < 0 &&
-		    timeout--)
-			break;
-
-		timeout = 3;
+		if (usb_bulk_write(usb_devh_tx, USB_TX_ENDPOINT, (char *)martin, sizeof(martin), 0) < 0) {
+			if (timeout-- == 0)
+				break;
+		} else {
+			timeout = 3;
+		}
 
 		usleep(1000000 / FPS);
 
