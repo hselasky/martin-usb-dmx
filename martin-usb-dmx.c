@@ -183,7 +183,7 @@ usb_read_loop(void *arg)
 		if (usb_bulk_read(usb_devh_rx, USB_RX_ENDPOINT, (char *)buffer, sizeof(buffer), 0) < 0 &&
 		    timeout-- == 0)
 			break;
-		timeout = 3
+		timeout = 3;
 	}
 	printf("USB READ FAILED\n");
 	return (NULL);
